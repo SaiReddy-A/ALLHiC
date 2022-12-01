@@ -5,7 +5,7 @@ use strict;
 
 # PreprocessSAMs.pl
 #
-# Syntax: PreprocessSAMs.pl <sam or bam filename> <draft assembly fasta>
+# Syntax: PreprocessSAMs.pl <sam or bam filename> <draft assembly fasta> <re_site> <threads>
 #
 # This Perl script prepares a SAM/BAM file for use with Lachesis.
 # Specifically, it pre-processes the file with bedtools, samtools, picard to remove redundant, chimeric, and/or uninformative read pairs.
@@ -86,8 +86,8 @@ sub run_cmd(@) {
 
 
 # Get the command-line arguments, or check syntax.
-if ( @ARGV != 3 ) {
-    print STDERR "\nPreprocessSAMs.pl: A script to prepare SAM or BAM files for use with Lachesis.\n\nSyntax: $0 <sam-or-bam-filename> <draft-assembly-fasta> enzyme(HINDIII/MBOI/Arima)\n\n";
+if ( @ARGV != 4 ) {
+    print STDERR "\nPreprocessSAMs.pl: A script to prepare SAM or BAM files for use with Lachesis.\n\nSyntax: $0 <sam-or-bam-filename> <draft-assembly-fasta> <enzyme(HINDIII/MBOI/Arima)> <threads>\n\n";
     exit;
 }
 
@@ -103,6 +103,7 @@ unless ( -e $fasta) {
     exit;
 }
 
+my $ncpu = $ARGV[3];
 $ARGV[2] = uc $ARGV[2];
 my $RE_site;
 if($ARGV[2] eq "HINDIII" or $ARGV[2] eq "AAGCTT"){
@@ -117,7 +118,7 @@ my ($head,$extension) = $SAM =~ /^(.*)\.(.*)$/;
 
 
 # Examine the extension to determine whether this is a SAM or a BAM file.  If it's a SAM, convert it to BAM.  If it doesn't seem to be either, throw an error.
-if    ( uc($extension) eq 'SAM' ) { run_cmd( "$samtools view -bS $SAM -o $head.bam" ); }
+if    ( uc($extension) eq 'SAM' ) { run_cmd( "$samtools view -@ $ncpu -bS $SAM -o $head.bam" ); }
 elsif ( uc($extension) eq 'BAM' ) {}
 else {
     print STDERR "$0: Can't determine file type for input file `$SAM`.\nFilename should end in '.SAM' or '.BAM' (not case-sensitive.)\n";
@@ -174,5 +175,5 @@ run_cmd( "$bedtools intersect -abam $head.bam -b $BED_RE_file > $head.REduced.ba
 #run_cmd( "${picard_head}SortSam.jar $opts I=$head.REduced.bam O=$head.REduced.sort_coord.bam SO=coordinate" );
 #run_cmd( "${picard_head}MarkDuplicates.jar $opts I=$head.REduced.sort_coord.bam O=$head.REduced.sort_coord.nodups.bam M=$head.REduced.sort_coord.dup_metrics AS=true REMOVE_DUPLICATES=true" );
 #run_cmd( "${picard_head}SortSam.jar $opts I=$head.REduced.sort_coord.nodups.bam O=$head.REduced.nodups.bam SO=queryname" );
-run_cmd( "$samtools view -F12 $head.REduced$nodups.bam -b -o $head.REduced$nodups.paired_only.bam" );
-run_cmd( "$samtools flagstat $head.REduced$nodups.paired_only.bam > $head.REduced$nodups.paired_only.flagstat" );
+run_cmd( "$samtools view -@ $ncpu -F12 $head.REduced$nodups.bam -b -o $head.REduced$nodups.paired_only.bam" );
+run_cmd( "$samtools flagstat -@ $ncpu $head.REduced$nodups.paired_only.bam > $head.REduced$nodups.paired_only.flagstat" );
