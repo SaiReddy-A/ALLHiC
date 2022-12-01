@@ -22,7 +22,7 @@ while(<IN>){
 	my @tdb = split(/\s+/,$infordb{$gene});
 	my %tmpdb = ();
 	map {$tmpdb{$_}++} @tdb;
-	print OUT "$data[0]	$data[3]	";
+	print OUT "$data[0]	$data[1]	";
 	map {print OUT "$_	"} keys %tmpdb;
 	print OUT "\n";
 	}
